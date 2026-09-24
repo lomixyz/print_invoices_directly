@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="aa_print_invoice_directly.ButtonOptions">
+        <Dialog size="'sm'" title="title">
+            <div style="text-align:center;">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-info" t-on-click="() => this.executePdfAction('print')">
+                        <i class="fa fa-print me-2"/>
+                        <span>Print The Invoice</span>
+                    </button>
+                </div>
+            </div>
+        </Dialog>
+    </t>
+</templates>
