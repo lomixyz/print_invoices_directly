@@ -17,6 +17,7 @@ Print Invoice Directly
     'data': [
         'views/ir_actions_report.xml',
     ],
+    'images': ['static/description/banner.png'],
     'installable': True,
     'application': False,
     'auto_install': False,
