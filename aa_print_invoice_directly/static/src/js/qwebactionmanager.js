@@ -1,15 +1,8 @@
 /** @odoo-module **/
 
-import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 import { getReportUrl } from "@web/webclient/actions/reports/utils";
-import { markup } from "@odoo/owl";
-
-const WKHTMLTOPDF_LINK = '<br><br><a href="http://wkhtmltopdf.org/" target="_blank">wkhtmltopdf.org</a>';
-
-// Cached (per page load) state of wkhtmltopdf, so the check is done only once.
-let wkhtmltopdfStatusProm;
-let upgradeNoticeShown = false;
+import { user } from "@web/core/user";
 
 // Single hidden iframe reused for every print job, and the blob url it currently holds.
 let printIframe;
@@ -22,7 +15,7 @@ let printBlobUrl;
  * same content as when they are downloaded.
  */
 function getPdfUrl(action, env) {
-    const context = { ...env.services.user.context, ...(action.context || {}) };
+    const context = { ...user.context, ...(action.context || {}) };
     let url = getReportUrl({ ...action, context }, "pdf");
     if (!url.includes("?")) {
         url += `?context=${encodeURIComponent(JSON.stringify(context))}`;
@@ -32,8 +25,9 @@ function getPdfUrl(action, env) {
 
 /**
  * Fetches the pdf and returns it as a blob url.
- * Throws when the server did not answer with a real PDF (server error, access error...),
- * so we never send an error page to the printer.
+ * Throws when the server did not answer with a real PDF (server error, access error,
+ * wkhtmltopdf missing/broken...), so we never send an error page to the printer - the
+ * standard Odoo flow then takes over and shows the real error to the user.
  */
 async function fetchPdfBlobUrl(url) {
     const response = await fetch(url, { credentials: "same-origin" });
@@ -86,16 +80,6 @@ function printBlobUrlInIframe(blobUrl) {
     });
 }
 
-async function getWkhtmltopdfStatus(env) {
-    if (!wkhtmltopdfStatusProm) {
-        wkhtmltopdfStatusProm = env.services.rpc("/report/check_wkhtmltopdf").catch((error) => {
-            wkhtmltopdfStatusProm = undefined; // allow a retry on the next print
-            throw error;
-        });
-    }
-    return wkhtmltopdfStatusProm;
-}
-
 registry
     .category("ir.actions.report handlers")
     .add("pdf_invoice_print_handler", async function (action, options, env) {
@@ -103,29 +87,6 @@ registry
         // Only PDF reports are concerned, and "download" is the standard Odoo behaviour.
         if (action.report_type !== "qweb-pdf" || printOption === "download") {
             return false;
-        }
-
-        let status;
-        try {
-            status = await getWkhtmltopdfStatus(env);
-        } catch {
-            return false; // let the standard flow deal with it
-        }
-        if (!["upgrade", "ok"].includes(status)) {
-            // wkhtmltopdf is missing/broken or Odoo has no workers: return false so the
-            // standard flow shows its own message and falls back to the HTML report.
-            return false;
-        }
-        if (status === "upgrade" && !upgradeNoticeShown) {
-            upgradeNoticeShown = true;
-            env.services.notification.add(
-                markup(
-                    _t(
-                        "You should upgrade your version of Wkhtmltopdf to at least 0.12.0 in order to get a correct display of headers and footers as well as support for table-breaking between pages."
-                    ) + WKHTMLTOPDF_LINK
-                ),
-                { sticky: true, title: _t("Report") }
-            );
         }
 
         const url = getPdfUrl(action, env);
