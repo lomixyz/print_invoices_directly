@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Print Invoice Directly',
-    'version': '20.0.1.0.4',
+    'version': '20.0.1.0.5',
     'summary': 'Print invoices and PDF reports directly from the browser, without downloading the file first.',
     'description': """
 Print Invoice Directly
